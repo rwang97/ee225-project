@@ -1,0 +1,105 @@
+
+wget http://www.openslr.org/resources/12/dev-clean.tar.gz
+wget https://dl.fbaipublicfiles.com/librilight/data/librispeech_finetuning.tgz
+sudo apt-get install libsndfile1
+
+python wav2vec_manifest.py /home/rwang97/fairseq/libri_dev_clean/LibriSpeech/dev-clean/ --dest libri_light --ext flac --valid-percent 0
+# python wav2vec_manifest.py /home/rwang97/fairseq/librispeech_finetuning/1h/5/clean --dest libri_light_train --ext flac --valid-percent 0
+python wav2vec_manifest.py /home/rwang97/fairseq/librispeech_finetuning/9h/ --dest libri_light_val --ext flac --valid-percent 0
+
+python wav2vec_manifest.py /home/rwang97/fairseq/librispeech_finetuning/1h/0_aug_standard --dest libri_light --ext flac --valid-percent 0
+
+
+
+python libri_labels.py libri_light/val.tsv --output-dir libri_light --output-name val
+python libri_labels.py libri_light/train.tsv --output-dir libri_light --output-name train
+
+
+wget https://dl.fbaipublicfiles.com/fairseq/wav2vec/dict.ltr.txt
+fairseq-hydra-train task.data=/home/rwang97/fairseq/examples/wav2vec/libri_light model.w2v_path=/home/rwang97/fairseq/wav2vec_small.pt distributed_training.distributed_world_size=1 +optimization.update_freq='[24]' --config-dir /home/rwang97/fairseq/examples/wav2vec/config/finetuning --config-name base_10m
+fairseq-hydra-train task.data=/home/rwang97/fairseq/examples/wav2vec/libri_light_denoise model.w2v_path=/home/rwang97/fairseq/wav2vec_small.pt distributed_training.distributed_world_size=1 +optimization.update_freq='[24]' --config-dir /home/rwang97/fairseq/examples/wav2vec/config/finetuning --config-name base_10m
+
+python examples/speech_recognition/infer.py /home/rwang97/fairseq/examples/wav2vec/libri_light --task audio_finetuning       --nbest 1 --path /home/rwang97/fairseq/examples/wav2vec/outputs/2021-12-13/19-55-35/checkpoints/checkpoint_best.pt --gen-subset val --results-path /home/rwang97/fairseq/examples/wav2vec/results/       --w2l-decoder kenlm --lm-model /home/rwang97/fairseq/examples/wav2vec/inference/4-gram.arpa.gz       --lm-weight 3.86 --word-score -1.18 --sil-weight 0       --criterion ctc --labels ltr --max-tokens 4000000 --post-process letter --beam=1500       --lexicon /home/rwang97/fairseq/examples/wav2vec/inference/librispeech_lexicon.lst
+# pip install https://github.com/kpu/kenlm/archive/master.zip
+# sudo apt update
+# apt search openblas
+# sudo apt install libopenblas-dev
+# sudo update-alternatives --config libblas.so.3
+
+conda install openblas
+
+pip install pyFFTW
+
+# https://github.com/eddelbuettel/mkl4deb
+cd /tmp
+wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS-2019.PUB
+sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS-2019.PUB
+sudo sh -c 'echo deb https://apt.repos.intel.com/mkl all main > /etc/apt/sources.list.d/intel-mkl.list'
+sudo apt-get update
+sudo apt-get install intel-mkl-64bit-2018.2-046
+export MKLROOT=/opt/intel/mkl
+
+# https://github.com/flashlight/flashlight/issues/664
+git clone https://github.com/kpu/kenlm.git
+cd kenlm
+mkdir -p build && cd build
+cmake .. 
+make -j 16
+cd ..
+export KENLM_ROOT=$PWD
+
+sudo apt-get install liblzma-dev libbz2-dev libzstd-dev libsndfile1-dev libopenblas-dev libfftw3-dev libgflags-dev libgoogle-glog-dev
+sudo apt install build-essential cmake libboost-system-dev libboost-thread-dev libboost-program-options-dev libboost-test-dev libeigen3-dev zlib1g-dev libbz2-dev liblzma-dev
+
+git clone https://github.com/flashlight/flashlight
+cd flashlight/bindings/python
+python setup.py install
+
+# https://github.com/pytorch/fairseq/issues/3658 for general directions
+
+
+# https://github.com/pytorch/fairseq/issues/2734 for lexicon
+
+
+
+pip install tensorboardX
+pip install editdistance
+
+mkdir inference
+wget https://dl.fbaipublicfiles.com/fairseq/wav2vec/librispeech_lexicon.lst
+wget https://openslr.magicdatatech.com/resources/11/4-gram.arpa.gz
+
+wget https://dl.fbaipublicfiles.com/fairseq/wav2vec/wav2vec_small_10m.pt
+pip install --upgrade numpy
+fairseq-hydra-train task.data=/home/rwang97/fairseq/examples/wav2vec/libri_light model.w2v_path=/home/rwang97/fairseq/wav2vec_small.pt distributed_training.distributed_world_size=1 +optimization.update_freq='[24]' --config-dir /home/rwang97/fairseq/examples/wav2vec/config/finetuning --config-name base_10m
+
+python fairseq/examples/speech_recognition/infer.py /home/rwang97/fairseq/examples/wav2vec/libri_light --task audio_finetuning \
+      --nbest 1 --path /home/rwang97/fairseq/wav2vec_small_10m.pt --gen-subset val --results-path /home/rwang97/fairseq/examples/wav2vec/results/ \
+      --w2l-decoder kenlm --lm-model /home/rwang97/fairseq/examples/wav2vec/inference/4-gram.arpa.gz \
+      --lm-weight 3.23 --word-score -0.26 --sil-weight 0 \
+      --criterion ctc --labels ltr --max-tokens 4000000 --post-process letter --beam=1500 \
+      --lexicon /home/rwang97/fairseq/examples/wav2vec/inference/librispeech_lexicon.lst \
+
+python examples/speech_recognition/infer.py /home/rwang97/fairseq/examples/wav2vec/libri_light --task audio_finetuning \
+      --nbest 1 --path /home/rwang97/fairseq/examples/wav2vec/outputs/2021-12-12/04-58-31/checkpoints/checkpoint_best.pt --gen-subset val --results-path /home/rwang97/fairseq/examples/wav2vec/results/ \
+      --w2l-decoder kenlm --lm-model /home/rwang97/fairseq/examples/wav2vec/inference/4-gram.arpa.gz \
+      --lm-weight 3.23 --word-score -0.26 --sil-weight 0 \
+      --criterion ctc --labels ltr --max-tokens 4000000 --post-process letter --beam=1500 \
+      --lexicon /home/rwang97/fairseq/examples/wav2vec/inference/librispeech_lexicon.lst \
+
+python examples/speech_recognition/infer.py /home/rwang97/fairseq/examples/wav2vec/libri_light --task audio_finetuning \
+      --nbest 1 --path /home/rwang97/fairseq/outputs/2021-12-12/18-54-09/checkpoints/checkpoint_best.pt --gen-subset val --results-path /home/rwang97/fairseq/examples/wav2vec/results/ \
+      --w2l-decoder kenlm --lm-model /home/rwang97/fairseq/examples/wav2vec/inference/4-gram.arpa.gz \
+      --lm-weight 3.23 --word-score -0.26 --sil-weight 0 \
+      --criterion ctc --labels ltr --max-tokens 4000000 --post-process letter --beam=1500 \
+      --lexicon /home/rwang97/fairseq/examples/wav2vec/inference/librispeech_lexicon.lst \
+
+      
+python speech_recognition/infer.py /home/rwang97/fairseq/examples/wav2vec/inference/data --task audio_finetuning       --nbest 1 --path /home/rwang97/fairseq/wav2vec_small_10m.pt --gen-subset val --results-path /home/rwang97/fairseq/examples/wav2vec/results       --w2l-decoder fairseqlm --lm-model /home/rwang97/fairseq/examples/wav2vec/inference/lm_librispeech_word_transformer.pt --lm-weight 1.20 --word-score -1.39 --sil-weight 0       --criterion ctc --labels ltr --max-tokens 4000000 --post-process letter --beam=500 --lexicon /home/rwang97/fairseq/examples/wav2vec/inference/librispeech_lexicon.lst
+
+
+
+
+https://github.com/pytorch/fairseq/issues/3655
++criterion.wer_kenlm_model=$LM_PATH +criterion.wer_lexicon=$LEX_PATH +criterion.wer_lm_weight=2 +criterion.wer_word_score=-1
+fairseq-hydra-train task.data=/home/rwang97/fairseq/examples/wav2vec/libri_light model.w2v_path=/home/rwang97/fairseq/wav2vec_small.pt distributed_training.distributed_world_size=1 +optimization.update_freq='[24]' +criterion.wer_kenlm_model=/home/rwang97/fairseq/examples/wav2vec/inference/4-gram.arpa.gz +criterion.wer_lexicon=/home/rwang97/fairseq/examples/wav2vec/inference/librispeech_lexicon.lst +criterion.wer_lm_weight=2 +criterion.wer_word_score=-1 --config-dir /home/rwang97/fairseq/examples/wav2vec/config/finetuning --config-name base_10m
