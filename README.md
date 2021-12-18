@@ -29,7 +29,7 @@ python -m denoiser.enhance --model_path=<path to the model> --noisy_dir=<path to
 ```
 
 
-## Fine-tune wav2vec2
+## fine-tune wav2vec2
 We use the official wav2vec repo, and their codebase is [here](https://github.com/pytorch/fairseq/tree/main/examples/wav2vec). 
 
 Library requirements: everything mentioned in their original repo
