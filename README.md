@@ -25,7 +25,7 @@ python train.py
 
 The output and models will be saved to `outputs`. To denoise the speech (i.e, generate masked speech), run:
 ```
-python -m denoiser.enhance --model_path=<path to the model> --noisy_dir=<path to the dir with the noisy files> --out_dir=<path to store enhanced files>
+python -m denoiser.run_inference --model_path=<path to the model> --noisy_dir=<path to the dir with the noisy files> --out_dir=<path to store enhanced files>
 ```
 
 
